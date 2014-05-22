@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
 
@@ -12,6 +13,7 @@ namespace SkyNET
         public bool IsLoggedIn { get; set; }
 
         private string Fkey { get; set; }
+        private List<string> _roomsIn = new List<string>();
 
         public void Login(BotCredentials credentials)
         {
@@ -32,17 +34,47 @@ namespace SkyNET
 
         public void EnterRoom(string room)
         {
+            this._roomsIn.Add(room);
             Client.Request(String.Format("http://chat.stackoverflow.com/rooms/{0}/", room)).Get();
         }
 
         public void LeaveRoom(string room)
         {
+            this._roomsIn.Remove(room);
             Client.Request(string.Format("http://chat.stackoverflow.com/rooms/{0}/leave", room)).Get();
+        }
+
+        // TODO: Should the message include the fact that it is a mass broadcast?  i.e. should we append a default message to the mass broadcast messages?
+        /// <summary>
+        /// Sends a message to all rooms in which the bot is residing
+        /// </summary>
+        /// <param name="message"></param>
+        public void SendMassMessage(string message)
+        {
+            string form = string.Format("text={0}&fkey={1}", Uri.EscapeDataString(message), this.Fkey);
+            foreach (var room in _roomsIn)
+            {
+                Client.Request(string.Format("http://chat.stackoverflow.com/chats/{0}/messages/new", room)).Post(form, "application/x-www-form-urlencoded");
+            }
+        }
+
+        /// <summary>
+        /// Sends a message to the specified rooms - Bot does not have to be in the room for this to work.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="rooms"></param>
+        public void SendMassMessage(string message, IEnumerable<string> rooms)
+        {
+            string form = string.Format("text={0}&fkey={1}", Uri.EscapeDataString(message), this.Fkey);
+            foreach (var room in rooms)
+            {
+                Client.Request(string.Format("http://chat.stackoverflow.com/chats/{0}/messages/new", room)).Post(form, "application/x-www-form-urlencoded");
+            }
         }
 
         public void SendMessage(string message, string room)
         {
-            string form = string.Format("text={0}&fkey={1}", Uri.EscapeDataString(message), Fkey);
+            string form = string.Format("text={0}&fkey={1}", Uri.EscapeDataString(message), this.Fkey);
             Client.Request(string.Format("http://chat.stackoverflow.com/chats/{0}/messages/new", room)).Post(form, "application/x-www-form-urlencoded");
         }
 
